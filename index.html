@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Finance Tracker</title>
+  <style>
+    :root {
+      --bg: #0f0f23;
+      --card: #16162a;
+      --card-hover: #1c1c3a;
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --week1: #fca5a5;
+      --week2: #fde047;
+      --week3: #93c5fd;
+      --week4: #86efac;
+      --week5: #c4b5fd;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    h1 { text-align: center; margin-bottom: 0.5rem; font-size: 2rem; }
+    .subtitle { text-align: center; color: var(--muted); margin-bottom: 1rem; font-size: 0.9rem; }
+
+    /* Sync bar */
+    .sync-bar {
+      max-width: 1400px;
+      margin: 0 auto 1.5rem;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      border: 1px solid rgba(99,102,241,0.1);
+    }
+    .sync-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    .sync-status .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .sync-status.synced .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .sync-status.unsynced .dot { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+    .sync-status.error .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+    .sync-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .sync-actions button {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+    .sync-actions .btn-sync { background: var(--success); }
+    .sync-actions .btn-restore { background: var(--accent); }
+    .sync-actions .btn-config { background: transparent; border: 1px solid rgba(255,255,255,0.1); }
+
+    /* Year selector */
+    .year-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .year-btn {
+      background: var(--card);
+      border: 1px solid rgba(99,102,241,0.2);
+      color: var(--muted);
+      padding: 0.4rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    .year-btn:hover { border-color: var(--accent); color: var(--text); }
+    .year-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .year-btn.new-year {
+      border-style: dashed;
+      border-color: var(--success);
+      color: var(--success);
+    }
+    .year-btn.new-year:hover { background: rgba(34,197,94,0.1); }
+    .year-display {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 80px;
+      text-align: center;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .tab {
+      background: var(--card);
+      border: 1px solid rgba(99,102,241,0.2);
+      color: var(--muted);
+      padding: 0.5rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    .tab:hover { border-color: var(--accent); color: var(--text); }
+    .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Collapsible */
+    .collapsible {
+      max-width: 1400px;
+      margin: 0 auto 1rem;
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid rgba(99,102,241,0.1);
+      overflow: hidden;
+    }
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      user-select: none;
+    }
+    .collapsible-header:hover { background: var(--card-hover); }
+    .collapsible-header h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .collapsible-header .chevron {
+      transition: transform 0.3s;
+      font-size: 1.2rem;
+      color: var(--muted);
+    }
+    .collapsible.open .chevron { transform: rotate(180deg); }
+    .collapsible-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease;
+    }
+    .collapsible.open .collapsible-body { max-height: 3000px; }
+    .collapsible-content { padding: 0 1.5rem 1.5rem; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; padding: 0.6rem 0.5rem; color: var(--muted); font-weight: 500; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    td { padding: 0.5rem; border-top: 1px solid rgba(255,255,255,0.04); }
+    tr:hover td { background: rgba(99,102,241,0.05); }
+    .bill-name { font-weight: 500; }
+    .due-date { color: var(--muted); font-size: 0.8rem; }
+    .amount { font-family: 'SF Mono', monospace; text-align: right; }
+    .paid { color: var(--success); font-weight: 600; cursor: pointer; }
+    .unpaid { color: var(--danger); cursor: pointer; }
+    .partial { color: var(--warning); cursor: pointer; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .dot-paid { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .dot-unpaid { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+    .dot-partial { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+    .phcci { color: #a78bfa; }
+    .total-row { font-weight: 700; background: rgba(99,102,241,0.08); }
+    .total-row td { border-top: 2px solid rgba(99,102,241,0.2); }
+
+    /* Editable cells */
+    .editable-amount {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      font-family: 'SF Mono', monospace;
+      font-size: 0.875rem;
+      text-align: right;
+      width: 90px;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      cursor: text;
+    }
+    .editable-amount:hover {
+      border-color: rgba(99,102,241,0.3);
+      background: rgba(99,102,241,0.05);
+    }
+    .editable-amount:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(99,102,241,0.1);
+    }
+
+    /* Month card grid */
+    .months-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 1rem;
+    }
+    .month-card {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      padding: 1rem;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .month-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.75rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .month-card-title { font-weight: 600; font-size: 1rem; }
+    .month-card-total { font-size: 0.8rem; color: var(--muted); }
+    .month-card-total span { color: var(--text); font-weight: 600; }
+
+    /* Weekly template */
+    .weeks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .week-card {
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      padding: 1rem;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .week-header {
+      text-align: center;
+      padding: 0.5rem;
+      border-radius: 6px;
+      margin-bottom: 0.75rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #1a1a2e;
+    }
+    .week-1 .week-header { background: var(--week1); }
+    .week-2 .week-header { background: var(--week2); }
+    .week-3 .week-header { background: var(--week3); }
+    .week-4 .week-header { background: var(--week4); }
+    .week-5 .week-header { background: var(--week5); }
+    .week-table th { font-size: 0.65rem; padding: 0.4rem 0.3rem; }
+    .week-table td { padding: 0.4rem 0.3rem; font-size: 0.8rem; }
+    .week-table .amount { text-align: right; font-family: 'SF Mono', monospace; }
+    .week-table .label { color: var(--muted); font-size: 0.75rem; }
+    .week-total { font-weight: 700; background: rgba(255,255,255,0.04); }
+    .week-total td { border-top: 2px solid rgba(255,255,255,0.1); }
+    .cash-on-hand { color: var(--success); }
+    .remaining { color: var(--warning); }
+
+    /* Editable cash input */
+    .cash-input {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--success);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'SF Mono', monospace;
+      font-size: 0.8rem;
+      width: 100px;
+      text-align: right;
+    }
+    .cash-input:focus {
+      outline: none;
+      border-color: var(--success);
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
+    }
+
+    /* Summary bar */
+    .summary-bar {
+      max-width: 1400px; margin: 2rem auto 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      padding: 1.5rem 2rem;
+      border-radius: 16px;
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .summary-item { text-align: center; }
+    .summary-label { font-size: 0.75rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.05em; }
+    .summary-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
+
+    /* Add form */
+    .add-form {
+      max-width: 1400px; margin: 2rem auto;
+      background: var(--card);
+      padding: 1.5rem;
+      border-radius: 16px;
+      display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+    }
+    input, select, button {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+    button {
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: var(--accent2); }
+    .delete-btn {
+      background: transparent;
+      color: var(--danger);
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border: 1px solid rgba(239,68,68,0.3);
+      cursor: pointer;
+    }
+    .delete-btn:hover { background: rgba(239,68,68,0.1); }
+
+    .empty { text-align: center; color: var(--muted); padding: 2rem; }
+    .badge { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(99,102,241,0.2); color: var(--accent); margin-left: 0.5rem; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 420px;
+      width: 90%;
+      border: 1px solid rgba(99,102,241,0.2);
+    }
+    .modal h3 { margin-bottom: 1rem; }
+    .modal p { color: var(--muted); margin-bottom: 1rem; font-size: 0.9rem; }
+    .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .modal-actions button { flex: 1; }
+    .modal-actions .cancel { background: transparent; border: 1px solid rgba(255,255,255,0.1); }
+
+    /* Config modal inputs */
+    .config-input {
+      width: 100%;
+      margin-bottom: 0.75rem;
+    }
+    .config-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+
+    /* Pay modal */
+    .pay-input {
+      width: 100%;
+      margin: 1rem 0;
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--card);
+      border: 1px solid rgba(99,102,241,0.2);
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      z-index: 200;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+  </style>
+<base target="_blank">
+</head>
+<body>
+  <h1>💰 Finance Tracker</h1>
+  <p class="subtitle">Monthly Bills & Weekly Budget Planner</p>
+
+  <!-- Sync Bar -->
+  <div class="sync-bar">
+    <div class="sync-status unsynced" id="syncStatus">
+      <span class="dot"></span>
+      <span id="syncText">Not synced to cloud</span>
+    </div>
+    <div class="sync-actions">
+      <button class="btn-sync" onclick="syncToSheets()">☁️ Sync to Sheets</button>
+      <button class="btn-restore" onclick="restoreFromSheets()">📥 Restore</button>
+      <button class="btn-config" onclick="showConfigModal()">⚙️ Config</button>
+    </div>
+  </div>
+
+  <!-- Year Selector -->
+  <div class="year-bar" id="yearBar">
+    <button class="year-btn" id="prevYear" onclick="changeYear(-1)">◀</button>
+    <div class="year-display" id="yearDisplay">2024</div>
+    <button class="year-btn" id="nextYear" onclick="changeYear(1)">▶</button>
+    <button class="year-btn new-year" id="addYearBtn" onclick="showNewYearModal()">+ New Year</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchView('bills')">📅 Monthly Bills</div>
+    <div class="tab" onclick="switchView('weekly')">📊 Weekly Budget</div>
+  </div>
+
+  <!-- VIEW 1: MONTHLY BILLS -->
+  <div id="view-bills" class="view active">
+    <div class="add-form">
+      <input type="text" id="billName" placeholder="Bill name" style="flex:1;min-width:120px;">
+      <input type="number" id="billAmount" placeholder="Amount" step="0.01" style="width:100px;">
+      <input type="date" id="billDate">
+      <select id="billMonth">
+        <option value="0">January</option>
+        <option value="1">February</option>
+        <option value="2">March</option>
+        <option value="3">April</option>
+        <option value="4">May</option>
+        <option value="5">June</option>
+        <option value="6">July</option>
+        <option value="7">August</option>
+        <option value="8">September</option>
+        <option value="9">October</option>
+        <option value="10">November</option>
+        <option value="11">December</option>
+      </select>
+      <select id="billStatus">
+        <option value="unpaid">Unpaid</option>
+        <option value="paid">Paid</option>
+      </select>
+      <button id="addBillBtn">Add Bill</button>
+    </div>
+
+    <div id="billsContainer"></div>
+
+    <div class="summary-bar" id="billsSummary"></div>
+  </div>
+
+  <!-- VIEW 2: WEEKLY BUDGET -->
+  <div id="view-weekly" class="view">
+    <div class="add-form">
+      <select id="weekNum">
+        <option value="0">Week 1</option>
+        <option value="1">Week 2</option>
+        <option value="2">Week 3</option>
+        <option value="3">Week 4</option>
+        <option value="4">Week 5</option>
+      </select>
+      <input type="text" id="weekItemName" placeholder="Item name (e.g. mother, CIMB)" style="flex:1;min-width:120px;">
+      <input type="number" id="weekItemAmount" placeholder="Amount" step="0.01" style="width:100px;">
+      <button id="addWeekBtn">Add Item</button>
+    </div>
+
+    <div id="weeklyContainer"></div>
+  </div>
+
+  <!-- New Year Modal -->
+  <div class="modal-overlay" id="newYearModal">
+    <div class="modal">
+      <h3>🎉 Start New Year</h3>
+      <p>Create a fresh template for <strong id="modalYear">2025</strong>? Your previous years' data will be preserved.</p>
+      <div class="modal-actions">
+        <button class="cancel" onclick="hideNewYearModal()">Cancel</button>
+        <button onclick="confirmNewYear()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pay Bill Modal -->
+  <div class="modal-overlay" id="payModal">
+    <div class="modal">
+      <h3>💳 Mark as Paid</h3>
+      <p id="payModalText">Enter amount paid:</p>
+      <input type="number" class="pay-input" id="payAmountInput" placeholder="Amount paid" step="0.01">
+      <div class="modal-actions">
+        <button class="cancel" onclick="hidePayModal()">Cancel</button>
+        <button onclick="confirmPay()">Mark Paid</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config Modal -->
+  <div class="modal-overlay" id="configModal">
+    <div class="modal">
+      <h3>⚙️ Google Sheets Config</h3>
+      <p>Paste your Google Apps Script Web App URL here. <a href="#" onclick="showSetupHelp()" style="color:var(--accent)">How to get this?</a></p>
+      <label class="config-label">Script URL</label>
+      <input type="text" class="config-input" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <label class="config-label">Passcode (optional)</label>
+      <input type="password" class="config-input" id="passcode" placeholder="Leave blank for no protection">
+      <div class="modal-actions">
+        <button class="cancel" onclick="hideConfigModal()">Cancel</button>
+        <button onclick="saveConfig()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup Help Modal -->
+  <div class="modal-overlay" id="helpModal">
+    <div class="modal">
+      <h3>📖 Setup Guide</h3>
+      <p style="font-size:0.85rem; line-height:1.6;">
+        <strong>1.</strong> Open Google Sheets → Create new sheet named "Finance Tracker"<br><br>
+        <strong>2.</strong> Go to Extensions → Apps Script<br><br>
+        <strong>3.</strong> Paste the provided script code<br><br>
+        <strong>4.</strong> Click Deploy → New deployment → Web app<br><br>
+        <strong>5.</strong> Set "Who has access" to "Anyone"<br><br>
+        <strong>6.</strong> Copy the Web App URL and paste it above<br><br>
+        <strong>7.</strong> Click Save — you're done!
+      </p>
+      <div class="modal-actions">
+        <button onclick="hideHelpModal()">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+<script>
+// ========== CONFIG ==========
+const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let currentYear = 2024;
+let allData = {};
+let payTarget = null;
+let scriptUrl = localStorage.getItem('ft_scriptUrl') || '';
+let passcode = localStorage.getItem('ft_passcode') || '';
+
+// Track which quarters are open
+let openQuarters = new Set([0]);
+
+// ========== DATA FACTORIES ==========
+function createDefaultBills() {
+  const bills = [];
+  for (let i = 0; i < 12; i++) {
+    bills.push({
+      name: monthNames[i],
+      bills: [
+        {name:'Phcci', date:'1st', amount:3000, status:'unpaid', phcci:true},
+        {name:'Phcci', date:'2nd', amount:3000, status:'unpaid', phcci:true},
+        {name:'Phcci', date:'3rd', amount:3000, status:'unpaid', phcci:true},
+        {name:'Phcci', date:'4th', amount:3000, status:'unpaid', phcci:true},
+        {name:'Electricity', date:'1st', amount:0, status:'unpaid'},
+        {name:'PLDT', date:'2nd', amount:1399, status:'unpaid'},
+        {name:'SSS Cont.', date:'3rd', amount:1275, status:'unpaid'},
+        {name:'Pag-ibig Cont.', date:'4th', amount:405, status:'unpaid'},
+        {name:'Water', date:'4th', amount:0, status:'unpaid'},
+        {name:'Ph. Mimi', date:'4th', amount:509.75, status:'unpaid'},
+        {name:'Ph. Momo', date:'4th', amount:509.75, status:'unpaid'},
+      ]
+    });
+  }
+  return bills;
+}
+
+function createDefaultWeekly() {
+  return {
+    weeks: [
+      { weekNum: 1, cashOnHand: 0, items: [{name: 'mother', amount: 0}, {name: 'CIMB', amount: 0}, {name: 'shoppee', amount: 0}] },
+      { weekNum: 2, cashOnHand: 0, items: [{name: 'mother', amount: 0}, {name: 'CIMB', amount: 0}, {name: 'shoppee', amount: 0}] },
+      { weekNum: 3, cashOnHand: 0, items: [{name: 'mother', amount: 0}, {name: 'CIMB', amount: 0}, {name: 'shoppee', amount: 0}] },
+      { weekNum: 4, cashOnHand: 0, items: [{name: 'mother', amount: 0}, {name: 'CIMB', amount: 0}, {name: 'shoppee', amount: 0}] },
+      { weekNum: 5, cashOnHand: 0, items: [{name: 'mother', amount: 0}, {name: 'CIMB', amount: 0}, {name: 'shoppee', amount: 0}] },
+    ]
+  };
+}
+
+// ========== LOAD / SAVE ==========
+function getStorageKey(year) { return 'financeTracker_' + year; }
+
+function loadAllData() {
+  const saved = localStorage.getItem('financeTracker_years');
+  let years = [];
+  if (saved) {
+    try { years = JSON.parse(saved); } catch(e) {}
+  }
+
+  if (years.length === 0) {
+    years = [2024];
+  }
+
+  allData = {};
+  years.forEach(y => {
+    const key = getStorageKey(y);
+    const data = localStorage.getItem(key);
+    if (data) {
+      try { allData[y] = JSON.parse(data); } 
+      catch(e) { allData[y] = { bills: createDefaultBills(), weekly: createDefaultWeekly() }; }
+    } else {
+      allData[y] = { bills: createDefaultBills(), weekly: createDefaultWeekly() };
+    }
+  });
+
+  saveYearsList();
+}
+
+function saveYearsList() {
+  const years = Object.keys(allData).map(Number).sort((a,b) => a-b);
+  localStorage.setItem('financeTracker_years', JSON.stringify(years));
+}
+
+function saveCurrentYear() {
+  const key = getStorageKey(currentYear);
+  localStorage.setItem(key, JSON.stringify(allData[currentYear]));
+  saveYearsList();
+  updateSyncStatus('unsynced');
+}
+
+function getBills() { return allData[currentYear].bills; }
+function getWeekly() { return allData[currentYear].weekly; }
+
+// ========== SYNC STATUS ==========
+function updateSyncStatus(status, msg) {
+  const el = document.getElementById('syncStatus');
+  const txt = document.getElementById('syncText');
+  el.className = 'sync-status ' + status;
+  if (msg) txt.textContent = msg;
+  else if (status === 'synced') txt.textContent = 'Synced to Google Sheets';
+  else if (status === 'unsynced') txt.textContent = 'Not synced to cloud';
+  else if (status === 'error') txt.textContent = 'Sync failed';
+}
+
+// ========== GOOGLE SHEETS SYNC ==========
+async function syncToSheets() {
+  if (!scriptUrl) {
+    showToast('Please configure your Google Sheets URL first', 'error');
+    showConfigModal();
+    return;
+  }
+
+  updateSyncStatus('unsynced', 'Syncing...');
+
+  try {
+    const payload = {
+      action: 'save',
+      passcode: passcode,
+      data: allData
+    };
+
+    const response = await fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    updateSyncStatus('synced');
+    showToast('Data synced to Google Sheets!', 'success');
+    localStorage.setItem('ft_lastSync', Date.now());
+
+  } catch (err) {
+    updateSyncStatus('error', 'Sync failed: ' + err.message);
+    showToast('Sync failed. Check your connection.', 'error');
+  }
+}
+
+async function restoreFromSheets() {
+  if (!scriptUrl) {
+    showToast('Please configure your Google Sheets URL first', 'error');
+    showConfigModal();
+    return;
+  }
+
+  updateSyncStatus('unsynced', 'Restoring...');
+
+  try {
+    const response = await fetch(scriptUrl + '?action=load&passcode=' + encodeURIComponent(passcode));
+    const result = await response.json();
+
+    if (result.success && result.data) {
+      allData = result.data;
+      Object.keys(allData).forEach(y => {
+        localStorage.setItem(getStorageKey(y), JSON.stringify(allData[y]));
+      });
+      saveYearsList();
+      updateYearDisplay();
+      renderAll();
+      updateSyncStatus('synced');
+      showToast('Data restored from Google Sheets!', 'success');
+    } else {
+      showToast(result.error || 'No data found in Sheets', 'error');
+      updateSyncStatus('error');
+    }
+  } catch (err) {
+    updateSyncStatus('error', 'Restore failed: ' + err.message);
+    showToast('Restore failed. Check your connection.', 'error');
+  }
+}
+
+// ========== CONFIG ==========
+function showConfigModal() {
+  document.getElementById('scriptUrl').value = scriptUrl;
+  document.getElementById('passcode').value = passcode;
+  document.getElementById('configModal').classList.add('show');
+}
+
+function hideConfigModal() {
+  document.getElementById('configModal').classList.remove('show');
+}
+
+function saveConfig() {
+  scriptUrl = document.getElementById('scriptUrl').value.trim();
+  passcode = document.getElementById('passcode').value.trim();
+  localStorage.setItem('ft_scriptUrl', scriptUrl);
+  localStorage.setItem('ft_passcode', passcode);
+  hideConfigModal();
+  showToast('Configuration saved!', 'success');
+}
+
+function showSetupHelp() {
+  document.getElementById('helpModal').classList.add('show');
+}
+
+function hideHelpModal() {
+  document.getElementById('helpModal').classList.remove('show');
+}
+
+// ========== TOAST ==========
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + type + ' show';
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ========== YEAR NAVIGATION ==========
+function changeYear(delta) {
+  const years = Object.keys(allData).map(Number).sort((a,b) => a-b);
+  const idx = years.indexOf(currentYear);
+  const newIdx = idx + delta;
+  if (newIdx >= 0 && newIdx < years.length) {
+    currentYear = years[newIdx];
+    // Reset open quarters for new year
+    openQuarters = new Set([0]);
+    updateYearDisplay();
+    renderAll();
+  }
+}
+
+function updateYearDisplay() {
+  document.getElementById('yearDisplay').textContent = currentYear;
+  const years = Object.keys(allData).map(Number).sort((a,b) => a-b);
+  const maxYear = Math.max(...years);
+  const addBtn = document.getElementById('addYearBtn');
+  document.getElementById('modalYear').textContent = maxYear + 1;
+
+  if (currentYear === maxYear) {
+    addBtn.style.display = 'inline-block';
+  } else {
+    addBtn.style.display = 'none';
+  }
+}
+
+function showNewYearModal() {
+  document.getElementById('newYearModal').classList.add('show');
+}
+
+function hideNewYearModal() {
+  document.getElementById('newYearModal').classList.remove('show');
+}
+
+function confirmNewYear() {
+  const years = Object.keys(allData).map(Number).sort((a,b) => a-b);
+  const newYear = Math.max(...years) + 1;
+  allData[newYear] = { bills: createDefaultBills(), weekly: createDefaultWeekly() };
+  saveCurrentYear();
+  currentYear = newYear;
+  saveCurrentYear();
+  openQuarters = new Set([0]);
+  updateYearDisplay();
+  renderAll();
+  hideNewYearModal();
+}
+
+// ========== PAY MODAL ==========
+function showPayModal(mi, bi) {
+  payTarget = { monthIdx: mi, billIdx: bi };
+  const bill = getBills()[mi].bills[bi];
+  document.getElementById('payModalText').innerHTML = 
+    `Bill: <strong>${bill.name}</strong> (${bill.date})<br>Total: <strong>${formatMoney(bill.amount)}</strong><br><br>Enter amount paid:`;
+  document.getElementById('payAmountInput').value = bill.amount || '';
+  document.getElementById('payModal').classList.add('show');
+  document.getElementById('payAmountInput').focus();
+}
+
+function hidePayModal() {
+  document.getElementById('payModal').classList.remove('show');
+  payTarget = null;
+}
+
+function confirmPay() {
+  if (!payTarget) return;
+  const paidAmt = parseFloat(document.getElementById('payAmountInput').value) || 0;
+  const bill = getBills()[payTarget.monthIdx].bills[payTarget.billIdx];
+  bill.paidAmount = paidAmt;
+  if (paidAmt >= bill.amount) {
+    bill.status = 'paid';
+  } else if (paidAmt > 0) {
+    bill.status = 'partial';
+  } else {
+    bill.status = 'unpaid';
+  }
+  hidePayModal();
+  renderBills();
+  saveCurrentYear();
+}
+
+// ========== FORMATTING ==========
+function formatMoney(n) {
+  if (n === 0 || n === undefined || n === null) return '-';
+  return '₱' + Number(n).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function getOrdinal(n) {
+  const s = ["th","st","nd","rd"];
+  const v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+// ========== TABS ==========
+function switchView(view) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('view-' + view).classList.add('active');
+}
+
+// ========== COLLAPSIBLE ==========
+function toggleCollapse(el) {
+  const collapsible = el.closest('.collapsible');
+  const qi = parseInt(collapsible.dataset.quarter);
+
+  if (collapsible.classList.contains('open')) {
+    collapsible.classList.remove('open');
+    openQuarters.delete(qi);
+  } else {
+    collapsible.classList.add('open');
+    openQuarters.add(qi);
+  }
+}
+
+// ========== RENDER BILLS ==========
+function renderBills() {
+  const container = document.getElementById('billsContainer');
+  const billsData = getBills();
+
+  const quarters = [
+    { name: 'Q1 — January to March', months: [0,1,2] },
+    { name: 'Q2 — April to June', months: [3,4,5] },
+    { name: 'Q3 — July to September', months: [6,7,8] },
+    { name: 'Q4 — October to December', months: [9,10,11] },
+  ];
+
+  container.innerHTML = quarters.map((q, qi) => `
+    <div class="collapsible ${openQuarters.has(qi) ? 'open' : ''}" data-quarter="${qi}">
+      <div class="collapsible-header" onclick="toggleCollapse(this)">
+        <h3>${q.name} <span class="badge">${q.months.length} months</span></h3>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="collapsible-body">
+        <div class="collapsible-content">
+          <div class="months-grid">
+            ${q.months.map(mi => {
+              const m = billsData[mi];
+              const total = m.bills.reduce((s,b) => s + (Number(b.amount) || 0), 0);
+              const paid = m.bills.reduce((s,b) => s + (Number(b.paidAmount) || (b.status==='paid' ? Number(b.amount) || 0 : 0)), 0);
+              const unpaid = total - paid;
+
+              return `
+              <div class="month-card">
+                <div class="month-card-header">
+                  <div class="month-card-title">${m.name}</div>
+                  <div class="month-card-total">Total: <span>${formatMoney(total)}</span></div>
+                </div>
+                <table>
+                  <thead><tr><th>Bill</th><th>Due</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    ${m.bills.map((b, bi) => {
+                      const statusClass = b.status === 'paid' ? 'paid' : (b.status === 'partial' ? 'partial' : 'unpaid');
+                      const dotClass = b.status === 'paid' ? 'dot-paid' : (b.status === 'partial' ? 'dot-partial' : 'dot-unpaid');
+                      const statusText = b.status === 'paid' 
+                        ? (b.paidAmount && Number(b.paidAmount) !== Number(b.amount) 
+                            ? formatMoney(b.paidAmount) + ' / ' + formatMoney(b.amount)
+                            : 'Paid')
+                        : (b.status === 'partial' 
+                            ? formatMoney(b.paidAmount || 0) + ' / ' + formatMoney(b.amount)
+                            : 'Unpaid');
+
+                      return `
+                      <tr>
+                        <td class="bill-name ${b.phcci?'phcci':''}">${b.name}</td>
+                        <td class="due-date">${b.date}</td>
+                        <td class="amount">
+                          <input type="number" class="editable-amount" value="${b.amount || ''}" 
+                            onchange="editBillAmount(${mi},${bi},this.value)" step="0.01">
+                        </td>
+                        <td class="${statusClass}" onclick="toggleBillStatus(${mi},${bi})" title="Click to change status">
+                          <span class="status-dot ${dotClass}"></span>
+                          ${statusText}
+                        </td>
+                        <td><button class="delete-btn" onclick="event.stopPropagation();deleteBill(${mi},${bi})">×</button></td>
+                      </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+                <div style="margin-top:0.75rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:0.8rem;">
+                  <span style="color:var(--success)">Paid: ${formatMoney(paid)}</span>
+                  <span style="color:var(--danger)">Unpaid: ${formatMoney(unpaid)}</span>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  const grandTotal = billsData.reduce((s,m) => s + m.bills.reduce((ss,b) => ss + (Number(b.amount)||0), 0), 0);
+  const grandPaid = billsData.reduce((s,m) => s + m.bills.reduce((ss,b) => ss + (Number(b.paidAmount) || (b.status==='paid'?Number(b.amount)||0:0)), 0), 0);
+  const grandUnpaid = grandTotal - grandPaid;
+  const phcciTotal = billsData.reduce((s,m) => s + m.bills.filter(b=>b.phcci).reduce((ss,b)=>ss+(Number(b.amount)||0),0), 0);
+
+  document.getElementById('billsSummary').innerHTML = `
+    <div class="summary-item"><div class="summary-label">Grand Total</div><div class="summary-value">${formatMoney(grandTotal)}</div></div>
+    <div class="summary-item"><div class="summary-label">Total Paid</div><div class="summary-value" style="color:#86efac">${formatMoney(grandPaid)}</div></div>
+    <div class="summary-item"><div class="summary-label">Remaining</div><div class="summary-value" style="color:#fca5a5">${formatMoney(grandUnpaid)}</div></div>
+    <div class="summary-item"><div class="summary-label">Phcci Total</div><div class="summary-value" style="color:#a78bfa">${formatMoney(phcciTotal)}</div></div>
+  `;
+}
+
+// ========== RENDER WEEKLY ==========
+function renderWeekly() {
+  const container = document.getElementById('weeklyContainer');
+  const weeklyData = getWeekly();
+
+  container.innerHTML = `
+    <div class="weeks-grid">
+      ${weeklyData.weeks.map((w, wi) => {
+        const totalItems = w.items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+        const cash = Number(w.cashOnHand) || 0;
+        const remaining = cash - totalItems;
+
+        return `
+        <div class="week-card week-${wi+1}">
+          <div class="week-header">Week ${w.weekNum}</div>
+          <table class="week-table">
+            <thead><tr><th>Item</th><th>Amount</th><th></th></tr></thead>
+            <tbody>
+              ${w.items.map((it, ii) => `
+                <tr>
+                  <td>${it.name}</td>
+                  <td class="amount">
+                    <input type="number" class="editable-amount" value="${it.amount || ''}" 
+                      onchange="editWeekItem(${wi},${ii},this.value)" step="0.01">
+                  </td>
+                  <td><button class="delete-btn" onclick="deleteWeekItem(${wi},${ii})">×</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div style="margin-top:0.75rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.06);">
+            <table class="week-table">
+              <tr class="week-total">
+                <td class="label">Cash on Hand</td>
+                <td class="amount cash-on-hand">
+                  <input type="number" class="cash-input" value="${cash || ''}" placeholder="0" onchange="updateCash(${wi}, this.value)">
+                </td>
+                <td></td>
+              </tr>
+              <tr class="week-total">
+                <td class="label">Total to Pay</td>
+                <td class="amount">${formatMoney(totalItems)}</td>
+                <td></td>
+              </tr>
+              <tr class="week-total">
+                <td class="label">Remaining</td>
+                <td class="amount remaining">${formatMoney(remaining)}</td>
+                <td></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderAll() {
+  renderBills();
+  renderWeekly();
+}
+
+// ========== ACTIONS ==========
+function addBill() {
+  const name = document.getElementById('billName').value.trim();
+  const amount = parseFloat(document.getElementById('billAmount').value) || 0;
+  const dateVal = document.getElementById('billDate').value;
+  const monthIdx = parseInt(document.getElementById('billMonth').value);
+  const status = document.getElementById('billStatus').value;
+
+  if(!name) { alert('Enter bill name'); return; }
+
+  let day = 'TBD';
+  if(dateVal) {
+    const d = new Date(dateVal);
+    day = getOrdinal(d.getDate());
+  }
+
+  getBills()[monthIdx].bills.push({
+    name, date: day, amount, status,
+    phcci: name.toLowerCase().includes('phcci'),
+    paidAmount: status==='paid' ? amount : 0
+  });
+
+  document.getElementById('billName').value = '';
+  document.getElementById('billAmount').value = '';
+  document.getElementById('billDate').value = '';
+
+  renderBills();
+  saveCurrentYear();
+}
+
+function deleteBill(mi, bi) {
+  getBills()[mi].bills.splice(bi, 1);
+  renderBills();
+  saveCurrentYear();
+}
+
+function editBillAmount(mi, bi, value) {
+  const bill = getBills()[mi].bills[bi];
+  bill.amount = parseFloat(value) || 0;
+  if (bill.status === 'paid' && bill.paidAmount) {
+    if (bill.paidAmount > bill.amount) {
+      bill.paidAmount = bill.amount;
+    }
+  }
+  renderBills();
+  saveCurrentYear();
+}
+
+function toggleBillStatus(mi, bi) {
+  const bill = getBills()[mi].bills[bi];
+  if (bill.status === 'unpaid') {
+    showPayModal(mi, bi);
+  } else if (bill.status === 'paid' || bill.status === 'partial') {
+    bill.status = 'unpaid';
+    bill.paidAmount = 0;
+    renderBills();
+    saveCurrentYear();
+  }
+}
+
+function addWeekItem() {
+  const weekIdx = parseInt(document.getElementById('weekNum').value);
+  const name = document.getElementById('weekItemName').value.trim();
+  const amount = parseFloat(document.getElementById('weekItemAmount').value) || 0;
+
+  if(!name) { alert('Enter item name'); return; }
+
+  getWeekly().weeks[weekIdx].items.push({name, amount});
+
+  document.getElementById('weekItemName').value = '';
+  document.getElementById('weekItemAmount').value = '';
+
+  renderWeekly();
+  saveCurrentYear();
+}
+
+function deleteWeekItem(wi, ii) {
+  getWeekly().weeks[wi].items.splice(ii, 1);
+  renderWeekly();
+  saveCurrentYear();
+}
+
+function editWeekItem(wi, ii, value) {
+  getWeekly().weeks[wi].items[ii].amount = parseFloat(value) || 0;
+  renderWeekly();
+  saveCurrentYear();
+}
+
+function updateCash(wi, value) {
+  getWeekly().weeks[wi].cashOnHand = parseFloat(value) || 0;
+  renderWeekly();
+  saveCurrentYear();
+}
+
+// ========== INIT ==========
+loadAllData();
+updateYearDisplay();
+renderAll();
+
+// Check if previously synced
+const lastSync = localStorage.getItem('ft_lastSync');
+if (lastSync && scriptUrl) {
+  updateSyncStatus('synced', 'Last synced: ' + new Date(Number(lastSync)).toLocaleString());
+}
+
+document.getElementById('addBillBtn').addEventListener('click', addBill);
+document.getElementById('addWeekBtn').addEventListener('click', addWeekItem);
+</script>
+</body>
+</html>
